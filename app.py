@@ -34,7 +34,7 @@ app.config.update(
     SQLALCHEMY_DATABASE_URI=f"sqlite:///{database_path}",
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     SQLALCHEMY_ENGINE_OPTIONS={"connect_args": {"check_same_thread": False}},
-    MAX_CONTENT_LENGTH=8 * 1024 * 1024,
+    MAX_CONTENT_LENGTH=2 * 1024 * 1024,
 )
 db.init_app(app)
 
