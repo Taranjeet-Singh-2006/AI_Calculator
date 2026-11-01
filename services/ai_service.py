@@ -458,7 +458,6 @@ print("Sending request to Gemini...")
                 "Gemini did not return a usable response. Please try again."
             ) from None
 
-
 def solve(payload):
     prompt = str(payload.get("prompt", "")).strip()
 
