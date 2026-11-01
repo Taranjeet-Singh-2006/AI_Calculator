@@ -14,7 +14,8 @@ from services.calculator_service import (
     solve_equation,
 )
 
-MAX_IMAGE_BYTES = 8 * 1024 * 1024
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_IMAGE_PIXELS = 12_000_000
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg": "jpeg",
     "image/png": "png",
@@ -282,63 +283,113 @@ def solve(payload):
     return {"answer": _clean_school_output(answer), "interpreted_problem": None, "calculation": None, "explanation": None}
 
 
+
 def solve_image(file_storage, mode, detail_level):
     if file_storage is None or not file_storage.filename:
         raise ValueError("Choose an image containing a math problem.")
 
-    # Browsers occasionally report uploaded images as application/octet-stream or
-    # omit the MIME type. Use the extension as a safe fallback instead of rejecting
-    # an otherwise valid math image.
     mime_type = (file_storage.mimetype or "").lower().split(";", 1)[0]
+
     extension_map = {
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
         ".png": "image/png",
         ".webp": "image/webp",
     }
+
     if mime_type not in ALLOWED_IMAGE_TYPES:
         suffix = os.path.splitext(file_storage.filename.lower())[1]
         mime_type = extension_map.get(suffix, "")
+
     if mime_type not in ALLOWED_IMAGE_TYPES:
         raise ValueError("Use a JPEG, PNG, or WebP image.")
 
     contents = file_storage.read(MAX_IMAGE_BYTES + 1)
+
     if not contents:
         raise ValueError("The selected image is empty.")
-    if len(contents) > MAX_IMAGE_BYTES:
-        raise ValueError("Choose an image smaller than 8 MB.")
 
-    # Normalize the uploaded image before sending it to Gemini. This handles
-    # browser-generated PNG/WebP variants consistently and prevents malformed
-    # MIME/content combinations from causing a generic API failure.
+    if len(contents) > MAX_IMAGE_BYTES:
+        raise ValueError("Choose an image smaller than 5 MB.")
+
     try:
         from io import BytesIO
-        with Image.open(BytesIO(contents)) as source:
-            source = ImageOps.exif_transpose(source)
-            if source.mode in ("RGBA", "LA", "P"):
-                background = Image.new("RGB", source.size, "white")
-                if source.mode == "P":
-                    source = source.convert("RGBA")
-                background.paste(source, mask=source.getchannel("A"))
-                source = background
-            else:
-                source = source.convert("RGB")
 
-            # Keep enough resolution for printed/handwritten equations without
-            # sending unnecessarily large payloads.
-            source.thumbnail((2200, 2200), Image.Resampling.LANCZOS)
+        with Image.open(BytesIO(contents)) as source:
+
+            # Reject excessively large images before processing.
+            width, height = source.size
+
+            if width * height > MAX_IMAGE_PIXELS:
+                raise ValueError(
+                    "Image resolution is too large. "
+                    "Please upload a smaller image."
+                )
+
+            source = ImageOps.exif_transpose(source)
+
+            # Resize before converting to RGB to reduce memory usage.
+            source.thumbnail(
+                (1600, 1600),
+                Image.Resampling.LANCZOS
+            )
+
+            # Convert transparent images onto a white background.
+            if source.mode in ("RGBA", "LA"):
+                rgba = source.convert("RGBA")
+                background = Image.new("RGB", rgba.size, "white")
+                background.paste(
+                    rgba,
+                    mask=rgba.getchannel("A")
+                )
+                image = background
+            else:
+                image = source.convert("RGB")
+
             output = BytesIO()
-            source.save(output, format="JPEG", quality=92, optimize=True)
+
+            image.save(
+                output,
+                format="JPEG",
+                quality=78
+            )
+
             contents = output.getvalue()
+
+            image.close()
+
         mime_type = "image/jpeg"
+
+    except ValueError:
+        raise
+
     except Exception as error:
-        print(f"Image normalization error: {type(error).__name__}: {error}")
-        raise ValueError("Could not read that image. Please upload a clear JPEG, PNG, or WebP image.") from None
+        print(
+            f"Image normalization error: "
+            f"{type(error).__name__}: {error}"
+        )
+        raise ValueError(
+            "Could not read that image. "
+            "Please upload a clear JPEG, PNG, or WebP image."
+        ) from None
 
     encoded = base64.b64encode(contents).decode("ascii")
+
     instruction = _request_prompt(
-        "Read the mathematical problem in the attached image. First transcribe the problem exactly enough to preserve numbers, signs, powers, fractions, and symbols. Then solve it using the strict school-notebook working style. Do not guess any unclear symbol; state what is unclear.",
-        mode, detail_level, "image"
+        "Read the mathematical problem in the attached image. "
+        "First transcribe the problem accurately, preserving numbers, "
+        "signs, powers, fractions and symbols. Then solve it using "
+        "strict school-notebook working style. Do not guess unclear symbols.",
+        mode,
+        detail_level,
+        "image"
     )
+
     answer = _call_gemini(instruction, (mime_type, encoded))
-    return {"answer": _clean_school_output(answer), "interpreted_problem": None, "calculation": None, "explanation": None}
+
+    return {
+        "answer": _clean_school_output(answer),
+        "interpreted_problem": None,
+        "calculation": None,
+        "explanation": None
+    }
