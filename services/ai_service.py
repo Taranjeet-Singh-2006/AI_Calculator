@@ -380,7 +380,10 @@ def _call_gemini(text, image=None):
             },
             method="POST",
         )
-
+print("Gemini model:", model)
+print("Image request:", image is not None)
+print("Request payload size:", len(request.data), "bytes")
+print("Sending request to Gemini...")
         try:
             with urllib.request.urlopen(request, timeout=90) as response:
                 raw = response.read().decode("utf-8")
@@ -453,7 +456,7 @@ def _call_gemini(text, image=None):
             raise RuntimeError(
                 "Gemini did not return a usable response. Please try again."
             ) from None
-
+print("Gemini response received successfully")
 
 def solve(payload):
     prompt = str(payload.get("prompt", "")).strip()
