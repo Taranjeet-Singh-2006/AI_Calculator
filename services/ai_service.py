@@ -380,10 +380,10 @@ def _call_gemini(text, image=None):
             },
             method="POST",
         )
-print("Gemini model:", model)
-print("Image request:", image is not None)
-print("Request payload size:", len(request.data), "bytes")
-print("Sending request to Gemini...")
+        print("Gemini model:", model)
+        print("Image request:", image is not None)
+        print("Request payload size:", len(request.data), "bytes")
+        print("Sending request to Gemini...")
         try:
             with urllib.request.urlopen(request, timeout=90) as response:
                 print("Gemini response received successfully")
