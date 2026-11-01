@@ -367,7 +367,7 @@ def _call_gemini(text, image=None):
         f"{model}:generateContent"
     )
 
-    max_retries = 2
+    max_retries = 0
     base_delay = 1.5
 
     for attempt in range(max_retries + 1):
@@ -382,7 +382,7 @@ def _call_gemini(text, image=None):
         )
 
         try:
-            with urllib.request.urlopen(request, timeout=35) as response:
+            with urllib.request.urlopen(request, timeout=90) as response:
                 raw = response.read().decode("utf-8")
 
             data = json.loads(raw)
