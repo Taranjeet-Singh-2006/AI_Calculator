@@ -14,8 +14,8 @@ from services.calculator_service import (
     solve_equation,
 )
 
-MAX_IMAGE_BYTES = 5 * 1024 * 1024
-MAX_IMAGE_PIXELS = 12_000_000
+source.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+source.save(output, format="JPEG", quality=65)
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg": "jpeg",
     "image/png": "png",
