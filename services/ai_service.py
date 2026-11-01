@@ -386,6 +386,7 @@ print("Request payload size:", len(request.data), "bytes")
 print("Sending request to Gemini...")
         try:
             with urllib.request.urlopen(request, timeout=90) as response:
+                print("Gemini response received successfully")
                 raw = response.read().decode("utf-8")
 
             data = json.loads(raw)
@@ -456,7 +457,7 @@ print("Sending request to Gemini...")
             raise RuntimeError(
                 "Gemini did not return a usable response. Please try again."
             ) from None
-print("Gemini response received successfully")
+
 
 def solve(payload):
     prompt = str(payload.get("prompt", "")).strip()
