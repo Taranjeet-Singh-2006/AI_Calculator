@@ -26,8 +26,6 @@
       intro: 'When the question needs interpretation, not just arithmetic.',
       features: [
         ['prompt', 'Prompt Calculator', 'Ask a plain-language question and keep the answer close.', 'bi-chat-square-text'],
-        ['image', 'Image Math Solver', 'Upload a worksheet or handwritten problem.', 'bi-image'],
-        ['voice', 'Voice Calculator', 'Speak a calculation when your hands are busy.', 'bi-mic'],
         ['solver', 'AI Math Solver', 'Choose answer-only, short, or detailed reasoning.', 'bi-lightbulb'],
         ['mistake', 'Mistake Detector', 'Compare your work with a careful explanation.', 'bi-search'],
         ['explain', 'Explain My Answer', 'Turn a result into a level-appropriate explanation.', 'bi-person-raised-hand']
@@ -66,8 +64,6 @@
     'Unit Converter': 'Unit',
     'Financial Calculator': 'Financial',
     'Prompt Calculator': 'AI',
-    'Image Math Solver': 'AI',
-    'Voice Calculator': 'AI',
     'AI Math Solver': 'AI',
     'Mistake Detector': 'AI',
     'Explain My Answer': 'AI',
@@ -396,43 +392,6 @@
     });
   }
 
-  function renderImageFeature() {
-    renderShell(`${aiNotice()}<div class="workspace"><div class="panel"><h2>Image Math Solver</h2><form id="image-form">${formGroup('Problem image', `<input class="form-control" name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required>`, 'Upload a JPEG, PNG, or WebP image under 8 MB.') }<div class="row g-3">${formGroup('Answer style', selectInput('mode', [['answer-only', 'Answer only'], ['short', 'Short explanation'], ['detailed', 'Detailed reasoning']], 'detailed'))}${formGroup('Level', selectInput('detail_level', [['beginner', 'Beginner'], ['student', 'Student'], ['detailed', 'Detailed']], 'student'))}</div><button class="btn btn-primary" type="submit"><i class="bi bi-scan me-2"></i>Read and solve</button></form></div><div class="panel result-panel"><h3>Result</h3><div id="result-content"><div class="empty-state py-2"><i class="bi bi-image"></i><div>Upload a problem to begin.</div></div></div></div></div>`, 'AI-Based Calculation', 'Image Math Solver<span class="serif">, made legible.</span>');
-    document.getElementById('image-form').addEventListener('submit', async event => {
-      event.preventDefault();
-      const form = event.currentTarget; const body = new FormData(form);
-      document.getElementById('result-content').innerHTML = loading('Reading the problem…');
-      try {
-        const result = await api('/calc-api/ai/image', { method: 'POST', body });
-        showResult({ result: result.answer, formula: result.interpreted_problem, steps: [result.calculation, result.explanation].filter(Boolean) }, form.image.files[0]?.name || 'Uploaded math image', 'AI-Based Calculation', 'Image Math Solver');
-      } catch (error) { document.getElementById('result-content').innerHTML = apiError(error); }
-    });
-  }
-  function renderVoiceFeature() {
-    renderShell(`${aiNotice()}<div class="workspace"><div class="panel"><h2>Voice Calculator</h2><p class="text-secondary small">Speak a calculation, then edit the transcript before sending it.</p><form id="voice-form">${formGroup('Transcript', `<textarea class="form-control" name="prompt" rows="5" placeholder="e.g. what is 14 percent of 280"></textarea>`)}<div class="d-flex gap-2 flex-wrap"><button type="button" class="btn btn-soft" id="voice-listen"><i class="bi bi-mic me-2"></i>Start listening</button><button class="btn btn-primary" type="submit">Calculate</button></div><div id="voice-support" class="form-text mt-3"></div></form></div><div class="panel result-panel"><h3>Result</h3><div id="result-content"><div class="empty-state py-2"><i class="bi bi-mic"></i><div>Your spoken calculation will land here.</div></div></div></div></div>`, 'AI-Based Calculation', 'Voice Calculator<span class="serif">, hands free.</span>');
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const support = document.getElementById('voice-support');
-    const listen = document.getElementById('voice-listen');
-    const prompt = document.querySelector('[name=prompt]');
-    if (!SpeechRecognition) { listen.disabled = true; support.textContent = 'Speech recognition is not available in this browser. Type your calculation instead.'; }
-    else {
-      support.textContent = 'Speech recognition is available. Your browser will ask for microphone access.';
-      listen.addEventListener('click', () => {
-        const recognition = new SpeechRecognition(); recognition.lang = 'en-US'; recognition.interimResults = false;
-        listen.innerHTML = '<i class="bi bi-record-circle me-2"></i>Listening…'; listen.disabled = true;
-        recognition.onresult = event => { prompt.value = event.results[0][0].transcript; };
-        recognition.onerror = () => notify('I could not hear that. You can type it instead.', 'error');
-        recognition.onend = () => { listen.innerHTML = '<i class="bi bi-mic me-2"></i>Start listening'; listen.disabled = false; };
-        recognition.start();
-      });
-    }
-    document.getElementById('voice-form').addEventListener('submit', async event => {
-      event.preventDefault(); document.getElementById('result-content').innerHTML = loading('Translating that into a calculation…');
-      try { const result = await api('/calc-api/ai/solve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature: 'voice', mode: 'short', prompt: prompt.value, detail_level: 'student' }) }); showResult({ result: result.answer, formula: result.interpreted_problem, steps: [result.calculation, result.explanation].filter(Boolean) }, prompt.value, 'AI-Based Calculation', 'Voice Calculator'); }
-      catch (error) { document.getElementById('result-content').innerHTML = apiError(error); }
-    });
-  }
-
   function renderGraph() {
     renderShell(`<div class="workspace"><div class="panel"><h2>Graph Calculator</h2><form id="graph-form">${formGroup('Function / equation', textInput('expression', 'e.g. y = 5*x - 8 or x^2 - 4*x + 3', 'x^2 - 4*x + 3'), 'Supports y = f(x), such as y = x^2 - 4*x + 3, and linear equations such as 5*x - 8*y + 1 = 0.') }<div class="row g-3">${formGroup('x minimum', textInput('xmin', '-10', '-10', 'number'))}${formGroup('x maximum', textInput('xmax', '10', '10', 'number'))}</div><div class="d-flex gap-2 flex-wrap"><button class="btn btn-primary" type="submit"><i class="bi bi-graph-up me-2"></i>Plot function</button><button class="btn btn-soft" id="reset-graph" type="button">Reset view</button></div></form></div><div class="panel chart-shell"><div id="plot" style="width:100%;height:340px;"></div></div><div class="panel"><h3>X / Y values</h3><div id="xy-table" class="table-responsive"><div class="empty-state py-2">Plot a function to see calculated X and Y values.</div></div></div></div>`, 'Advanced Features', 'Graph Calculator<span class="serif">, see the shape.</span>');
     const draw = async (expr, min, max) => {
@@ -530,8 +489,6 @@
     if (type === 'category') return renderCategory(id);
     if (type === 'feature') {
       if (coreForms[id]) return id === 'normal' ? renderNormalWithKeypad() : renderCoreFeature(id);
-      if (id === 'image') return renderImageFeature();
-      if (id === 'voice') return renderVoiceFeature();
       if (id === 'graph') return renderGraph();
       if (id === 'whatif') return renderWhatIf();
       if (id === 'quadratic') return renderQuadratic();
